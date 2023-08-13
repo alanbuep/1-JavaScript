@@ -3,6 +3,7 @@ let continuarComprando = true;
 let continuarAgregando = true;
 let total = 0
 let carrito = []
+let busqueda = []
 
 const Producto = function (nombre, precio, stock, descripcion){
     this.nombre=nombre
@@ -29,64 +30,193 @@ let producto7 = new Producto("Gabinete",40000,60,"GABINETE XFX YOROI GC-03HE 6 C
 // Lista de productos
 let lista = [producto1,producto2,producto3,producto4, producto5,producto6,producto7]
 
+// Actualizo la lista si es que esta guardada
+cargarLista()
+
+// Eventos
+let boton1 = document.getElementById("verTodo")
+boton1.addEventListener("click",function() {mostrarProductos(lista)})
+let boton2 = document.getElementById("verCarrito")
+boton2.addEventListener("click", mostrarCarrito)
+let boton3 = document.getElementById("addProducto")
+boton3.addEventListener("click", agregarProducto)
+
+let searchForm = document.getElementById('searchForm')
+searchForm.addEventListener('submit', function(event) {
+    event.preventDefault()
+    let palabraBuscada = document.getElementById('searchInput').value.trim().toLowerCase()
+    filtrarProductos(palabraBuscada)
+    }
+)
+
+// Funcion crear card de venta
+function crearCardVenta(producto){
+    const newCard = document.createElement("div");
+    newCard.className = "card"
+    newCard.style.width = "18rem"
+    newCard.innerHTML = `
+        <div class="card-body">
+            <h3 class="card-text">${producto.nombre}</h3>
+            <p class="card-text">${producto.descripcion}</p>
+            <p class="card-text stock-text">Stock disponible: ${producto.stock}</p>
+            <p class="text-primary">Precio efectivo o transferencia</p>
+            <p class="text-primary">$${producto.precio}</p>
+            <button id="addCarrito" class="btn btn-success" data-nombre="${producto.nombre}" data-precio="${producto.precio}" data-descripcion="${producto.descripcion}" data-stock="${producto.stock}">Añadir al carrito</button>
+        </div>
+    `
+    const contenedor = document.getElementById("mostrarProductos")
+    contenedor.appendChild(newCard)
+
+    const btnAdd = newCard.querySelector("#addCarrito")
+    btnAdd.addEventListener("click", function() {
+        const nombre = this.getAttribute("data-nombre")
+        const precio = parseFloat(this.getAttribute("data-precio"))
+        const descripcion = this.getAttribute("data-descripcion")
+        const stock = parseInt(this.getAttribute("data-stock"))
+
+        if (stock > 0) {
+            const productoCarrito = new ProductoCarrito(nombre, precio, descripcion)
+            carrito.push(productoCarrito)
+
+            this.setAttribute("data-stock", stock - 1)
+            const stockText = this.parentElement.querySelector(".stock-text")
+            stockText.textContent = `Stock disponible: ${stock - 1}`
+            const productoEnLista = lista.find(item => item.nombre === nombre);
+            if (productoEnLista) {
+                productoEnLista.stock -= 1
+            }
+            Swal.fire({
+                position: 'top-end',
+                icon: 'success',
+                title: 'Producto agregado al carrito ' + nombre,
+                showConfirmButton: false,
+                timer: 1200
+            })
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops...',
+                text: 'No hay productos disponibles',
+            })
+        }
+    })
+}
+
+// Funcion crear card de carrito
+function crearCard(producto){
+    const newCard = document.createElement("div");
+    newCard.className = "card"
+    newCard.style.width = "18rem"
+    newCard.innerHTML = `
+        <div class="card-body">
+            <h3 class="card-text">${producto.nombre}</h3>
+            <p class="card-text">${producto.descripcion}</p>
+            <p class="text-primary">Precio efectivo o transferencia</p>
+            <p class="text-primary">$${producto.precio}</p>
+        </div>
+    `
+    const contenedor = document.getElementById("mostrarProductos")
+    contenedor.appendChild(newCard)
+}
+
 // Función para mostrar los productos disponibles
-function mostrarProductos() {
-    console.table(lista)
+function mostrarProductos(list) {
+    const contenedor = document.getElementById("mostrarProductos")
+    contenedor.innerHTML = `<h2 class="gap-4 text-white title-h2">Productos:</h2>`
+    for(let i = 0; i < list.length; i++){
+        crearCardVenta(list[i])
+    }
+}
+
+// Función para mostrar los productos del carrito
+function mostrarCarrito (){
+    const contenedor = document.getElementById("mostrarProductos")
+    let total = precioCompra()
+    if(total > 0){
+    contenedor.innerHTML = `<div class="container">
+                            <h2 class="gap-4 text-white title-h2">Productos:</h2>
+                            <p class="text-primary">El total es: ${total}</p>
+                            <button id="cancelCompra" type="button" class="btn btn-primary btn-secondary">Cancelar Compra</button>
+                            <button id="endCompra" type="button" class="btn btn-primary btn-secondary">Finalizar Compra</button>
+                            </div>`
+    for(let i = 0; i < carrito.length; i++){
+        crearCard(carrito[i])
+    }
+
+    let boton4 = document.getElementById("endCompra")
+    boton4.addEventListener("click", finCompra)
+
+    let boton5 = document.getElementById("cancelCompra")
+    boton5.addEventListener("click", cancelCompra)
+    }else{
+        Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: 'No hay productos',
+        })
+    }
 }
 
 // Función para filtrar productos
-
-function filtrarProductos(){
-    let productoFiltro = prompt("Que producto desea buscar?").trim().toLocaleLowerCase()
-    let resultado = lista.filter( (x)=>x.nombre.toLocaleLowerCase().includes(productoFiltro))
+function filtrarProductos(palabraBuscada){
+    let resultado = lista.filter( (x)=>x.nombre.toLocaleLowerCase().includes(palabraBuscada))
 
     if(resultado.length > 0){
-        console.table(resultado)
+        mostrarProductos(resultado)
     }else{
-        alert("No se encontro el producto: " + productoFiltro)
+        Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: 'No se encontro el producto: '+ palabraBuscada,
+        })
     }
 }
 
 // Funcion para agregar productos a la tienda
 function agregarProducto(){
-    let nombre = prompt("Nombre del producto a agregar").trim()
-    let precio = parseFloat(prompt("Precio del producto a agregar"))
-    let stock = parseInt(prompt("Stock del producto a agregar"))
-    let descripcion = prompt("Descripción del producto a agregar")
+    let usuario = prompt("Ingrese contraseña (admin)")
+    if(usuario === "admin"){
+        let nombre = prompt("Nombre del producto a agregar").trim()
+        let precio = parseFloat(prompt("Precio del producto a agregar"))
+        let stock = parseInt(prompt("Stock del producto a agregar"))
+        let descripcion = prompt("Descripción del producto a agregar")
 
-    if(isNaN(nombre ==="" || descripcion ==="" || precio) || isNaN(stock)){
-        alert("Ingrese datos válidos")
-    return;
-    }
-    
-    let producto = new Producto(nombre,precio,stock,descripcion)
-    
-    if (lista.some((p)=>(p.nombre === producto.nombre))){
-        alert("El producto ya existe")
+        if(isNaN(nombre ==="" || descripcion ==="" || precio) || isNaN(stock)){
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops...',
+                text: 'Ingrese datos válidos',
+            })
         return;
-    }
+        }
+        
+        let producto = new Producto(nombre,precio,stock,descripcion)
+        
+        if (lista.some((p)=>(p.nombre === producto.nombre))){
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops...',
+                text: 'El producto ya existe',
+            })
+            return;
+        }
 
-    lista.push(producto)
-    console.log("Producto " + producto.nombre + " agregado")
-}
+        lista.push(producto)
 
-// Función para agregar un producto al carrito
-function agregarCarrito(producto) {
-    if(producto >= lista.length || isNaN(producto ==="")){
-        alert("Ingrese un producto valido")
-        return;
-    }
-    if(lista[producto].stock == 0){
-        alert("No hay stock")
-    }else{
-    let nombre = lista[producto].nombre
-    let precio = lista[producto].precio
-    let descripcion = lista[producto].descripcion
-
-    let productoCarrito = new ProductoCarrito(nombre,precio,descripcion)
-
-    carrito.push(productoCarrito)
-    console.log("Producto " + productoCarrito.nombre + " agregado")
+        Swal.fire({
+            title: 'Quiere guardar la lista de productos?',
+            showDenyButton: true,
+            showCancelButton: true,
+            confirmButtonText: 'Guardar',
+            denyButtonText: `No, despues`,
+        }).then((result) => {
+            /* Read more about isConfirmed, isDenied below */
+            if (result.isConfirmed) {
+                guardarLista()
+            } else if (result.isDenied) {
+                Swal.fire('Recuerde guardar', '', 'info')
+            }
+        })
     }
 }
 
@@ -98,46 +228,58 @@ function precioCompra(){
     return total
 }
 
-let botonBuscar = document.getElementById("buscar")
+// Guardar lista de productos
+function guardarLista(){
+    const listaJSON = JSON.stringify(lista)
+    localStorage.setItem("listaData",listaJSON)
+    Swal.fire('Guardado en local Storage!', '', 'success')
+}
 
-botonBuscar.addEventListener("click",filtrarProductos)
+// Funcion cancelar compra
+function cancelCompra(){
+    carrito.forEach(productoCarrito => {
+        const producto = lista.find(item => item.nombre === productoCarrito.nombre)
+        if (producto) {
+            producto.stock += 1
+        }
+    })
+    carrito = []
+    cargarLista()
+    Swal.fire({
+        title: 'Compra cancelada',
+        icon: 'warning',
+        confirmButtonText: 'Ok',
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = "index.html"
+        }
+    })
+}
 
-// Programa principal
-console.log("Bienvenido a TiendaGamer")
-while(1){
-continuarComprando = true;
-continuarAgregando = true;
-total = 0
-carrito = []
-let usuario = prompt("Usted es cliente o empleado?").trim().toLocaleLowerCase()
-    switch(usuario){
-        case "cliente":
-            mostrarProductos()
-            while (continuarComprando) {
-                let opcionCliente = prompt("Ingrese el índice del producto que desea agregar al carrito.\nESC para finalizar:").toLocaleUpperCase()
-                if (opcionCliente === "ESC") {
-                    continuarComprando = false;
-                    console.log("Compra finalizada.")
-                    console.table(carrito)
-                    let total = precioCompra()
-                    console.log("El costo de la compra es: $" + total);
-                }else{
-                    agregarCarrito(opcionCliente)
-                }
-            }
-        break;
-        case "empleado":
-            while (continuarAgregando) {
-                agregarProducto()
-                let opcionEmpleado = prompt("Desea seguir agregando productos, Presione aceptar.\nESC para finalizar:").toLocaleUpperCase()
-                if (opcionEmpleado === "ESC") {
-                    continuarAgregando = false
-                    mostrarProductos()
-                }
-            }
-        break;
-        default:
-            alert("Error de incio")
-        break;
+// Funcion finalizar compra
+function finCompra(){
+    const listaJSON = JSON.stringify(lista)
+    localStorage.setItem("listaData",listaJSON)
+    carrito = []
+    cargarLista()
+    Swal.fire({
+        title: 'Gracias por su compra!',
+        confirmButtonText: 'Ok',
+    }).then((result) => {
+        if (result.isConfirmed) {
+        window.location.href = "index.html"
+        }
+    })
+    
+}
+
+// Chequear y actualizar lista de productos guardada
+function cargarLista(){
+    const listaData = localStorage.getItem("listaData")
+    if (listaData) {
+        const listaJSON = JSON.parse(listaData)
+        if (listaJSON.length > 0) {
+            lista = listaJSON
+        }
     }
 }
